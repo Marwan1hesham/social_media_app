@@ -1,0 +1,28 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.validation = void 0;
+const global_error_handler_1 = require("../utils/global-error-handler");
+const validation = (schema) => {
+    return async (req, res, next) => {
+        const errorValidation = [];
+        for (const key of Object.keys(schema)) {
+            if (!schema[key])
+                continue;
+            if (req?.file) {
+                req.body.attachment = req.file;
+            }
+            if (req?.files) {
+                req.body.attachments = req.files;
+            }
+            const result = await schema[key].safeParseAsync(req[key]);
+            if (!result?.success) {
+                errorValidation.push(result?.error.message);
+            }
+        }
+        if (errorValidation.length) {
+            throw new global_error_handler_1.AppError(JSON.parse(errorValidation), 400);
+        }
+        next();
+    };
+};
+exports.validation = validation;
