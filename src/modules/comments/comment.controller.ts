@@ -6,34 +6,14 @@ import multerCloud from "../../common/middleware/multer.cloud.js";
 import { StoreEnum } from "../../common/enum/multer.enum.js";
 import commentService from "./comment.service.js";
 
-const commentRouter = Router();
+const commentRouter = Router({ mergeParams: true });
 
 commentRouter.post(
-  "/:postId",
+  "/",
   authentication,
+  multerCloud({ store_type: StoreEnum.memory }).array("attachments"),
   validation(commentValidation.createCommentSchema),
   commentService.createComment,
-);
-
-commentRouter.patch(
-  "/:postId/:commentId",
-  authentication,
-  validation(commentValidation.likeCommentSchema),
-  commentService.likeComment,
-);
-
-commentRouter.delete(
-  "/delete/:commentId",
-  authentication,
-  validation(commentValidation.deleteCommentSchema),
-  commentService.deleteComment,
-);
-
-commentRouter.put(
-  "/update/:commentId",
-  authentication,
-  validation(commentValidation.updateCommentSchema),
-  commentService.updateComment,
 );
 
 export default commentRouter;

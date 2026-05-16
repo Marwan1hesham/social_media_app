@@ -27,6 +27,13 @@ import { S3Service } from "../../common/service/s3.service";
 import notificationService from "../../common/service/notification.service";
 import CommentRepository from "../../DB/repository/comment.repository";
 import PostRepository from "../../DB/repository/post.repository";
+import { AvailabilityPost } from "../../common/utils/post.utils";
+import { Allow_Comment_Enum, On_Model_Enum } from "../../common/enum/post.enum";
+import { StoreEnum } from "../../common/enum/multer.enum";
+import { populate } from "dotenv";
+import { createCommentDto } from "./comment.dto";
+import { IPost } from "../../DB/models/post.model";
+import { IComment } from "../../DB/models/comment.model";
 
 class AuthService {
   private readonly _userRepo = new UserRepository();
@@ -40,28 +47,107 @@ class AuthService {
   constructor() {}
 
   createComment = async (req: Request, res: Response, next: NextFunction) => {
-    const { content, likes } = req.body;
-    let { postId } = req.params;
+    const { content, tags, onModel }: createCommentDto = req.body;
+    let { postId, commentId } = req.params;
 
-    if (!postId || Array.isArray(postId)) {
-      throw new AppError("Invalid post id", 400);
+    let doc: HydratedDocument<IPost | IComment> | null = null;
+    if (onModel === On_Model_Enum.post && !commentId) {
+      doc = await this._postRepo.findOne({
+        filter: {
+          _id: postId,
+          ...AvailabilityPost(req),
+          allowComments: Allow_Comment_Enum.allow,
+        },
+      });
+      if (!doc) {
+        throw new AppError("Post not found", 404);
+      }
+    } else if (onModel === On_Model_Enum.comment && commentId) {
+      const comment = await this._commentRepo.findOne({
+        filter: {
+          _id: commentId,
+          refId: postId!,
+        },
+        options: {
+          populate: [
+            {
+              path: "refId",
+              match: {
+                ...AvailabilityPost,
+                allowComments: Allow_Comment_Enum.allow,
+              },
+            },
+          ],
+        },
+      });
+      if (!comment?.refId) {
+        throw new AppError("comment not found", 404);
+      }
+
+      doc = comment;
     }
 
-    const post = await this._postRepo.findOne({
-      filter: {
-        _id: postId,
-      },
-    });
-    if (!post) {
-      throw new AppError("Post not found");
+    if (!doc) {
+      throw new AppError("Invalid onModel value");
+    }
+
+    let mentions: Types.ObjectId[] = [];
+    let fcmTokens: string[] = [];
+
+    if (tags?.length) {
+      const mentionTags = await this._userRepo.find({
+        filter: { _id: { $in: tags } },
+      });
+
+      if (tags.length != mentionTags?.length) {
+        throw new AppError("Invalid tag id");
+      }
+
+      for (const tag of mentionTags!) {
+        if (tag._id.toString() == req.user?._id.toString()) {
+          throw new AppError("You cannot mention yourself");
+        }
+
+        mentions.push(tag._id);
+        (await this._redisService.getFCMs(tag._id)).map((token) =>
+          fcmTokens.push(token),
+        );
+      }
+    }
+
+    let urls: string[] = [];
+    let folderId = randomUUID();
+    if (req?.files) {
+      urls = await this._s3Service.uploadFiles({
+        files: req.files as Express.Multer.File[],
+        path: `users/${req?.user?._id}/posts/${doc?.folderId}/comments`,
+        store_type: StoreEnum.memory,
+      });
     }
 
     const comment = await this._commentRepo.create({
-      content,
+      content: content || "",
+      attachments: urls,
       createdBy: req.user?._id,
-      postId: new Types.ObjectId(postId),
-      likes,
+      folderId,
+      tags: mentions,
+      refId: doc?._id!,
     });
+
+    if (!comment) {
+      await this._s3Service.deleteFiles(urls);
+      throw new AppError("Failed to create comment");
+    }
+
+    if (fcmTokens?.length) {
+      await this._notificationService.sendNotifications({
+        tokens: fcmTokens,
+        data: {
+          title: "You are mentioned on new post",
+          body: content || "new post",
+        },
+      });
+    }
 
     successResponce({ res, data: comment });
   };

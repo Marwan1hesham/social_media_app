@@ -5,8 +5,11 @@ import postService from "./post.service.js";
 import { authentication } from "../../common/middleware/authentication.js";
 import multerCloud from "../../common/middleware/multer.cloud.js";
 import { StoreEnum } from "../../common/enum/multer.enum.js";
+import commentRouter from "../comments/comment.controller.js";
 
 const postRouter = Router();
+
+postRouter.use("/:postId/comments{/:commentId/replies}", commentRouter);
 
 postRouter.post(
   "/",
@@ -16,7 +19,7 @@ postRouter.post(
   postService.createPost,
 );
 
-postRouter.get("/", authentication, postService.getPosts);
+postRouter.get("/", postService.getPosts);
 
 postRouter.patch(
   "/:postId",
@@ -33,6 +36,11 @@ postRouter.put(
   postService.updatePost,
 );
 
-postRouter.delete("/delete/:postId",authentication,validation(postValidation.deletePostSchema), postService.deletePost);
+postRouter.delete(
+  "/delete/:postId",
+  authentication,
+  validation(postValidation.deletePostSchema),
+  postService.deletePost,
+);
 
 export default postRouter;

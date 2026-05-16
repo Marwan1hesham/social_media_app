@@ -79,6 +79,11 @@ const PostSchema = new mongoose_1.default.Schema({
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
 });
+PostSchema.virtual("comments", {
+    ref: "Comment",
+    localField: "_id",
+    foreignField: "refId",
+});
 const PostModel = mongoose_1.default.models.Post ||
     mongoose_1.default.model("Post", PostSchema);
 exports.default = PostModel;

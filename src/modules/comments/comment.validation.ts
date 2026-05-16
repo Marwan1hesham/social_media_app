@@ -1,35 +1,37 @@
 import * as z from "zod";
 import { generalRules } from "../../common/utils/generalRules";
+import { On_Model_Enum } from "../../common/enum/post.enum";
 
 export const createCommentSchema: any = {
-  body: z.object({
-    content: z.string().min(1),
-    likes: z.array(z.string()).optional(),
-  }),
-  params: z.object({
+  body: z
+    .strictObject({
+      content: z.string().optional(),
+      attachments: z.array(generalRules.file).optional(),
+      tags: z.array(generalRules.id).optional(),
+      onModel: z.enum(On_Model_Enum),
+    })
+    .superRefine((args, ctx) => {
+      if (!args.content && !args.attachments?.length) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["content"],
+          message: "Content is required",
+        });
+      }
+
+      if (args?.tags) {
+        const uniqueTags = new Set(args.tags);
+        if (args.tags.length !== uniqueTags.size) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["tags"],
+            message: "Don't Duplicate tags",
+          });
+        }
+      }
+    }),
+  params: z.strictObject({
     postId: generalRules.id,
-  }),
-};
-
-export const likeCommentSchema: any = {
-  params: z.object({
-    postId: generalRules.id,
-    commentId: generalRules.id,
-  }),
-};
-
-export const deleteCommentSchema: any = {
-  params: z.object({
-    commentId: generalRules.id,
-  }),
-};
-
-export const updateCommentSchema: any = {
-  body: z.object({
-    content: z.string().min(1).optional(),
-    likes: z.array(z.string()).optional(),
-  }),
-  params: z.object({
-    commentId: generalRules.id,
+    commentId: generalRules.id.optional(),
   }),
 };

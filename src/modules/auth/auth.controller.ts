@@ -13,6 +13,7 @@ authRouter.post(
   validation(authValidation.singInSchema),
   AuthService.signIn,
 );
+
 authRouter.post(
   "/signup",
   validation(authValidation.singUpSchema),

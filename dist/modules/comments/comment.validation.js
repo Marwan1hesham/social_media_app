@@ -33,35 +33,39 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateCommentSchema = exports.deleteCommentSchema = exports.likeCommentSchema = exports.createCommentSchema = void 0;
+exports.createCommentSchema = void 0;
 const z = __importStar(require("zod"));
 const generalRules_1 = require("../../common/utils/generalRules");
+const post_enum_1 = require("../../common/enum/post.enum");
 exports.createCommentSchema = {
-    body: z.object({
-        content: z.string().min(1),
-        likes: z.array(z.string()).optional(),
+    body: z
+        .strictObject({
+        content: z.string().optional(),
+        attachments: z.array(generalRules_1.generalRules.file).optional(),
+        tags: z.array(generalRules_1.generalRules.id).optional(),
+        onModel: z.enum(post_enum_1.On_Model_Enum),
+    })
+        .superRefine((args, ctx) => {
+        if (!args.content && !args.attachments?.length) {
+            ctx.addIssue({
+                code: "custom",
+                path: ["content"],
+                message: "Content is required",
+            });
+        }
+        if (args?.tags) {
+            const uniqueTags = new Set(args.tags);
+            if (args.tags.length !== uniqueTags.size) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["tags"],
+                    message: "Don't Duplicate tags",
+                });
+            }
+        }
     }),
-    params: z.object({
+    params: z.strictObject({
         postId: generalRules_1.generalRules.id,
-    }),
-};
-exports.likeCommentSchema = {
-    params: z.object({
-        postId: generalRules_1.generalRules.id,
-        commentId: generalRules_1.generalRules.id,
-    }),
-};
-exports.deleteCommentSchema = {
-    params: z.object({
-        commentId: generalRules_1.generalRules.id,
-    }),
-};
-exports.updateCommentSchema = {
-    body: z.object({
-        content: z.string().min(1).optional(),
-        likes: z.array(z.string()).optional(),
-    }),
-    params: z.object({
-        commentId: generalRules_1.generalRules.id,
+        commentId: generalRules_1.generalRules.id.optional(),
     }),
 };

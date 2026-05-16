@@ -3,16 +3,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const mongoose_1 = require("mongoose");
 const user_repository_1 = __importDefault(require("../../DB/repository/user.repository"));
 const global_error_handler_1 = require("../../common/utils/global-error-handler");
 const redis_service_1 = __importDefault(require("../../common/service/redis.service"));
 const responce_success_1 = require("../../common/utils/responce.success");
+const node_crypto_1 = require("node:crypto");
 const token_service_1 = __importDefault(require("../../common/service/token.service"));
 const s3_service_1 = require("../../common/service/s3.service");
 const notification_service_1 = __importDefault(require("../../common/service/notification.service"));
 const comment_repository_1 = __importDefault(require("../../DB/repository/comment.repository"));
 const post_repository_1 = __importDefault(require("../../DB/repository/post.repository"));
+const post_utils_1 = require("../../common/utils/post.utils");
+const post_enum_1 = require("../../common/enum/post.enum");
+const multer_enum_1 = require("../../common/enum/multer.enum");
 class AuthService {
     _userRepo = new user_repository_1.default();
     _commentRepo = new comment_repository_1.default();
@@ -23,25 +26,94 @@ class AuthService {
     _notificationService = notification_service_1.default;
     constructor() { }
     createComment = async (req, res, next) => {
-        const { content, likes } = req.body;
-        let { postId } = req.params;
-        if (!postId || Array.isArray(postId)) {
-            throw new global_error_handler_1.AppError("Invalid post id", 400);
+        const { content, tags, onModel } = req.body;
+        let { postId, commentId } = req.params;
+        let doc = null;
+        if (onModel === post_enum_1.On_Model_Enum.post && !commentId) {
+            doc = await this._postRepo.findOne({
+                filter: {
+                    _id: postId,
+                    ...(0, post_utils_1.AvailabilityPost)(req),
+                    allowComments: post_enum_1.Allow_Comment_Enum.allow,
+                },
+            });
+            if (!doc) {
+                throw new global_error_handler_1.AppError("Post not found", 404);
+            }
         }
-        const post = await this._postRepo.findOne({
-            filter: {
-                _id: postId,
-            },
-        });
-        if (!post) {
-            throw new global_error_handler_1.AppError("Post not found");
+        else if (onModel === post_enum_1.On_Model_Enum.comment && commentId) {
+            const comment = await this._commentRepo.findOne({
+                filter: {
+                    _id: commentId,
+                    refId: postId,
+                },
+                options: {
+                    populate: [
+                        {
+                            path: "refId",
+                            match: {
+                                ...post_utils_1.AvailabilityPost,
+                                allowComments: post_enum_1.Allow_Comment_Enum.allow,
+                            },
+                        },
+                    ],
+                },
+            });
+            if (!comment?.refId) {
+                throw new global_error_handler_1.AppError("comment not found", 404);
+            }
+            doc = comment;
+        }
+        if (!doc) {
+            throw new global_error_handler_1.AppError("Invalid onModel value");
+        }
+        let mentions = [];
+        let fcmTokens = [];
+        if (tags?.length) {
+            const mentionTags = await this._userRepo.find({
+                filter: { _id: { $in: tags } },
+            });
+            if (tags.length != mentionTags?.length) {
+                throw new global_error_handler_1.AppError("Invalid tag id");
+            }
+            for (const tag of mentionTags) {
+                if (tag._id.toString() == req.user?._id.toString()) {
+                    throw new global_error_handler_1.AppError("You cannot mention yourself");
+                }
+                mentions.push(tag._id);
+                (await this._redisService.getFCMs(tag._id)).map((token) => fcmTokens.push(token));
+            }
+        }
+        let urls = [];
+        let folderId = (0, node_crypto_1.randomUUID)();
+        if (req?.files) {
+            urls = await this._s3Service.uploadFiles({
+                files: req.files,
+                path: `users/${req?.user?._id}/posts/${doc?.folderId}/comments`,
+                store_type: multer_enum_1.StoreEnum.memory,
+            });
         }
         const comment = await this._commentRepo.create({
-            content,
+            content: content || "",
+            attachments: urls,
             createdBy: req.user?._id,
-            postId: new mongoose_1.Types.ObjectId(postId),
-            likes,
+            folderId,
+            tags: mentions,
+            refId: doc?._id,
         });
+        if (!comment) {
+            await this._s3Service.deleteFiles(urls);
+            throw new global_error_handler_1.AppError("Failed to create comment");
+        }
+        if (fcmTokens?.length) {
+            await this._notificationService.sendNotifications({
+                tokens: fcmTokens,
+                data: {
+                    title: "You are mentioned on new post",
+                    body: content || "new post",
+                },
+            });
+        }
         (0, responce_success_1.successResponce)({ res, data: comment });
     };
     likeComment = async (req, res, next) => {

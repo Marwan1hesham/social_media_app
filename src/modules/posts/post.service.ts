@@ -23,11 +23,13 @@ import UserRepository from "../../DB/repository/user.repository";
 import { StoreEnum } from "../../common/enum/multer.enum";
 import { Availability_Enum } from "../../common/enum/post.enum";
 import { AvailabilityPost } from "../../common/utils/post.utils";
+import CommentRepository from "../../DB/repository/comment.repository";
 
 class PostService {
   private readonly model = PostModel;
   private readonly _postRepo = new PostRepository();
   private readonly _userRepo = new UserRepository();
+  private readonly _commentRepo = new CommentRepository();
   private readonly _s3Service = new S3Service();
   private readonly _redisService = RedisService;
   private readonly _tokenService = TokenService;
@@ -102,31 +104,38 @@ class PostService {
   };
 
   getPosts = async (req: Request, res: Response, next: NextFunction) => {
-    const posts = await this._postRepo.paginate({
-      page: +req?.query?.page!,
-      limit: +req?.query?.limit!,
-      search: {
-        ...AvailabilityPost(req),
-        ...(req.query?.search
-          ? {
-              $or: [{ content: { $regex: req.query.search, $options: "i" } }],
-            }
-          : {}),
-      },
-    });
-    // const posts = await this._postRepo.find({
-    //   filter: {
-    //     $or: [
-    //       { availability: Availability_Enum.public },
-    //       { availability: Availability_Enum.only_me, createdBy: req.user?._id },
-    //       {
-    //         availability: Availability_Enum.friends,
-    //         createdBy: { $in: [...(req.user?.friends || []), req.user?._id] },
-    //       },
-    //       { tags: { $in: [req.user?._id] } },
-    //     ],
+    // const posts = await this._postRepo.paginate({
+    //   page: +req?.query?.page!,
+    //   limit: +req?.query?.limit!,
+    //   search: {
+    //     ...AvailabilityPost(req),
+    //     ...(req.query?.search
+    //       ? {
+    //           $or: [{ content: { $regex: req.query.search, $options: "i" } }],
+    //         }
+    //       : {}),
     //   },
     // });
+    const posts = await this._postRepo.find({
+      filter: {
+        ...AvailabilityPost,
+      },
+      options: {
+        populate: [
+          {
+            path: "comments",
+            match: {
+              commentId: { $exists: false },
+            },
+            populate: [
+              {
+                path: "replies",
+              },
+            ],
+          },
+        ],
+      },
+    });
 
     successResponce({ res, data: posts });
   };

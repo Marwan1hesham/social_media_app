@@ -1,11 +1,17 @@
 import mongoose, { Types } from "mongoose";
 import { Type } from "@aws-sdk/client-s3";
+import { string } from "zod";
+import { On_Model_Enum } from "../../common/enum/post.enum";
 
 export interface IComment {
-  content: string;
+  content?: string;
+  folderId: string;
+  attachments?: string[];
   createdBy: Types.ObjectId;
-  postId: Types.ObjectId;
+  tags?: Types.ObjectId[];
   likes?: Types.ObjectId[];
+  refId: Types.ObjectId;
+  onModel: On_Model_Enum;
 }
 
 const CommentSchema = new mongoose.Schema<IComment>(
@@ -15,14 +21,11 @@ const CommentSchema = new mongoose.Schema<IComment>(
       min: 1,
       required: true,
     },
+    folderId: String,
+    attachments: [String],
     createdBy: {
       type: Types.ObjectId,
       ref: "User",
-      required: true,
-    },
-    postId: {
-      type: Types.ObjectId,
-      ref: "Post",
       required: true,
     },
     likes: [
@@ -31,6 +34,22 @@ const CommentSchema = new mongoose.Schema<IComment>(
         ref: "User",
       },
     ],
+    tags: [
+      {
+        type: Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    refId: {
+      type: Types.ObjectId,
+      refPath: "onModel",
+      required: true,
+    },
+    onModel: {
+      type: String,
+      enum: On_Model_Enum,
+      required: true,
+    },
   },
   {
     timestamps: true,
@@ -40,6 +59,12 @@ const CommentSchema = new mongoose.Schema<IComment>(
     toObject: { virtuals: true },
   },
 );
+
+CommentSchema.virtual("replies", {
+  ref: "Comment",
+  localField: "_id",
+  foreignField: "refId",
+});
 
 const CommentModel =
   (mongoose.models.Comment as mongoose.Model<IComment>) ||

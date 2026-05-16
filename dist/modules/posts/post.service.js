@@ -16,10 +16,12 @@ const notification_service_1 = __importDefault(require("../../common/service/not
 const user_repository_1 = __importDefault(require("../../DB/repository/user.repository"));
 const multer_enum_1 = require("../../common/enum/multer.enum");
 const post_utils_1 = require("../../common/utils/post.utils");
+const comment_repository_1 = __importDefault(require("../../DB/repository/comment.repository"));
 class PostService {
     model = post_model_1.default;
     _postRepo = new post_repository_1.default();
     _userRepo = new user_repository_1.default();
+    _commentRepo = new comment_repository_1.default();
     _s3Service = new s3_service_1.S3Service();
     _redisService = redis_service_1.default;
     _tokenService = token_service_1.default;
@@ -78,31 +80,38 @@ class PostService {
         (0, responce_success_1.successResponce)({ res, data: post });
     };
     getPosts = async (req, res, next) => {
-        const posts = await this._postRepo.paginate({
-            page: +req?.query?.page,
-            limit: +req?.query?.limit,
-            search: {
-                ...(0, post_utils_1.AvailabilityPost)(req),
-                ...(req.query?.search
-                    ? {
-                        $or: [{ content: { $regex: req.query.search, $options: "i" } }],
-                    }
-                    : {}),
-            },
-        });
-        // const posts = await this._postRepo.find({
-        //   filter: {
-        //     $or: [
-        //       { availability: Availability_Enum.public },
-        //       { availability: Availability_Enum.only_me, createdBy: req.user?._id },
-        //       {
-        //         availability: Availability_Enum.friends,
-        //         createdBy: { $in: [...(req.user?.friends || []), req.user?._id] },
-        //       },
-        //       { tags: { $in: [req.user?._id] } },
-        //     ],
+        // const posts = await this._postRepo.paginate({
+        //   page: +req?.query?.page!,
+        //   limit: +req?.query?.limit!,
+        //   search: {
+        //     ...AvailabilityPost(req),
+        //     ...(req.query?.search
+        //       ? {
+        //           $or: [{ content: { $regex: req.query.search, $options: "i" } }],
+        //         }
+        //       : {}),
         //   },
         // });
+        const posts = await this._postRepo.find({
+            filter: {
+                ...post_utils_1.AvailabilityPost,
+            },
+            options: {
+                populate: [
+                    {
+                        path: "comments",
+                        match: {
+                            commentId: { $exists: false },
+                        },
+                        populate: [
+                            {
+                                path: "replies",
+                            },
+                        ],
+                    },
+                ],
+            },
+        });
         (0, responce_success_1.successResponce)({ res, data: posts });
     };
     likePost = async (req, res, next) => {
