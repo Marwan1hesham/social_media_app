@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.confirmEmailSchema = exports.singUpSchema = exports.singInSchema = exports.resendOtpSchema = void 0;
+exports.confirmEmailSchema = exports.singUpSchema = exports.getUserSchema = exports.singInSchema = exports.resendOtpSchema = void 0;
 const z = __importStar(require("zod"));
 const user_enum_1 = require("../../common/enum/user.enum");
 exports.resendOtpSchema = {
@@ -48,6 +48,9 @@ exports.singInSchema = {
         fcm: z.string(),
     }),
 };
+exports.getUserSchema = z.strictObject({
+    token: z.string(),
+});
 exports.singUpSchema = {
     body: z
         .object({

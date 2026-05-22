@@ -19,6 +19,11 @@ const token_service_1 = __importDefault(require("../../common/service/token.serv
 const google_auth_library_1 = require("google-auth-library");
 const s3_service_1 = require("../../common/service/s3.service");
 const notification_service_1 = __importDefault(require("../../common/service/notification.service"));
+const users = [
+    { id: 1, name: "ahmed", age: 20, gender: "male" },
+    { id: 2, name: "omar", age: 25, gender: "male" },
+    { id: 3, name: "ali", age: 40, gender: "male" },
+];
 class AuthService {
     _userRepo = new user_repository_1.default();
     _s3Service = new s3_service_1.S3Service();
@@ -264,6 +269,13 @@ class AuthService {
             update: { profilePicture: Key },
         });
         (0, responce_success_1.successResponce)({ res, data: { url, Key } });
+    };
+    //==================== graphql ============================
+    getUsers = async () => {
+        return await this._userRepo.find({ filter: {} });
+    };
+    getUser = async (userId) => {
+        return await this._userRepo.findOne({ filter: { _id: userId } });
     };
 }
 exports.default = new AuthService();

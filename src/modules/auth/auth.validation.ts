@@ -15,6 +15,10 @@ export const singInSchema: any = {
   }),
 };
 
+export const getUserSchema: any = z.strictObject({
+  token: z.string(),
+});
+
 export const singUpSchema: any = {
   body: z
     .object({

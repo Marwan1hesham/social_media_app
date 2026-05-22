@@ -73,3 +73,39 @@ export const authentication = async (
 
   next();
 };
+
+export const authentication_gql = async (authorization: string) => {
+  if (!authorization) {
+    throw new AppError("Token required", 404);
+  }
+
+  const [prefix, token]: string[] = authorization.split(" ");
+
+  if (!token) {
+    throw new AppError("Token not found", 404);
+  }
+
+  let ACCESS_SECRET_KEY = "";
+  if (prefix === PREFIX_USER) {
+    ACCESS_SECRET_KEY = ACCESS_SECRET_KEY_USER;
+  } else if (prefix === PREFIX_ADMIN) {
+    ACCESS_SECRET_KEY = ACCESS_SECRET_KEY_ADMIN;
+  } else {
+    throw new AppError("Invalid prefix", 401);
+  }
+
+  const decoded = tokenService.verifyToken({
+    token: token,
+    secret_key: ACCESS_SECRET_KEY,
+  });
+
+  if (!decoded || !decoded?.id) {
+    throw new AppError("Invalid token");
+  }
+
+  const user = await userModel.findOne({
+    filter: { _id: decoded.id },
+  });
+
+  return { user, decoded };
+};

@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import userModel, { IUser } from "../../DB/models/user.model";
-import { HydratedDocument, Model } from "mongoose";
+import { HydratedDocument, Model, Types } from "mongoose";
 import { ConfirmEmailDto, SignInDto, SignUpDto } from "./auth.dto";
 import UserRepository from "../../DB/repository/user.repository";
 import { encrypt } from "../../common/utils/security/encrypt";
@@ -26,6 +26,12 @@ import { OAuth2Client } from "google-auth-library";
 import { JwtPayload } from "jsonwebtoken";
 import { S3Service } from "../../common/service/s3.service";
 import notificationService from "../../common/service/notification.service";
+
+const users = [
+  { id: 1, name: "ahmed", age: 20, gender: "male" },
+  { id: 2, name: "omar", age: 25, gender: "male" },
+  { id: 3, name: "ali", age: 40, gender: "male" },
+];
 
 class AuthService {
   private readonly _userRepo = new UserRepository();
@@ -350,6 +356,16 @@ class AuthService {
     });
 
     successResponce({ res, data: { url, Key } });
+  };
+
+  //==================== graphql ============================
+
+  getUsers = async () => {
+    return await this._userRepo.find({ filter: {} });
+  };
+
+  getUser = async (userId: Types.ObjectId) => {
+    return await this._userRepo.findOne({ filter: { _id: userId } });
   };
 }
 
