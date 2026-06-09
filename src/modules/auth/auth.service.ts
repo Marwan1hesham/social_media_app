@@ -275,7 +275,7 @@ class AuthService {
           ? ACCESS_SECRET_KEY_USER
           : ACCESS_SECRET_KEY_ADMIN,
       options: {
-        expiresIn: 60 * 10,
+        expiresIn: 60 * 30,
         jwtid: uuid,
       },
     });
@@ -307,7 +307,7 @@ class AuthService {
 
     successResponce({
       res,
-      message: "Logged in successfully",
+      message: "Done",
       data: {
         access_token,
         refresh_token,
@@ -316,7 +316,18 @@ class AuthService {
   };
 
   getProfile = async (req: Request, res: Response, next: NextFunction) => {
-    successResponce({ res, message: "Done", data: req.user });
+    const user = await this._userRepo.findOne({
+      filter: {
+        _id: req.user._id as Types.ObjectId,
+      },
+      options: {
+        populate: {
+          path: "friends",
+        },
+      },
+    });
+
+    successResponce({ res, message: "Done", data: { user } });
   };
 
   logout = async (req: Request, res: Response, next: NextFunction) => {

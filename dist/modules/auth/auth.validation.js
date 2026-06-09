@@ -45,7 +45,7 @@ exports.singInSchema = {
     body: z.object({
         email: z.email("Invalid email address"),
         password: z.string().min(6),
-        fcm: z.string(),
+        // fcm: z.string(),
     }),
 };
 exports.getUserSchema = z.strictObject({
@@ -60,7 +60,12 @@ exports.singUpSchema = {
         cPassword: z.string().min(6),
         age: z.number({ error: "age is required" }).min(18).max(100),
         gender: z.enum(user_enum_1.GenderEnum).optional(),
-        phone: z.string().min(11).max(15).optional(),
+        phone: z
+            .string()
+            .regex(/^\+\d+$/)
+            .min(11)
+            .max(15)
+            .optional(),
         address: z.string().min(3).max(100).optional(),
     })
         .refine((data) => {

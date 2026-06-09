@@ -34,44 +34,16 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
-const post_enum_1 = require("../../common/enum/post.enum");
-const PostSchema = new mongoose_1.default.Schema({
+const messageSchema = new mongoose_1.default.Schema({
     content: {
         type: String,
-        min: 1,
-        required: function () {
-            return !this.attachments?.length;
-        },
+        required: true,
     },
-    attachments: [String],
     createdBy: {
         type: mongoose_1.Types.ObjectId,
         ref: "User",
         required: true,
     },
-    likes: [
-        {
-            type: mongoose_1.Types.ObjectId,
-            ref: "User",
-        },
-    ],
-    tags: [
-        {
-            type: mongoose_1.Types.ObjectId,
-            ref: "User",
-        },
-    ],
-    allowComments: {
-        type: String,
-        enum: post_enum_1.Allow_Comment_Enum,
-        default: post_enum_1.Allow_Comment_Enum.allow,
-    },
-    availability: {
-        type: String,
-        enum: post_enum_1.Availability_Enum,
-        default: post_enum_1.Availability_Enum.public,
-    },
-    folderId: String,
 }, {
     timestamps: true,
     strict: true,
@@ -79,19 +51,30 @@ const PostSchema = new mongoose_1.default.Schema({
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
 });
-PostSchema.virtual("comments", {
-    ref: "Comment",
-    localField: "_id",
-    foreignField: "refId",
+const ChatSchema = new mongoose_1.default.Schema({
+    messages: [messageSchema],
+    createdBy: {
+        type: mongoose_1.Types.ObjectId,
+        ref: "User",
+        required: true,
+    },
+    participants: [
+        {
+            type: mongoose_1.Types.ObjectId,
+            ref: "User",
+            required: true,
+        },
+    ],
+    group: String,
+    groupImage: String,
+    roomId: String,
+}, {
+    timestamps: true,
+    strict: true,
+    strictQuery: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
 });
-const PostModel = mongoose_1.default.models.Post ||
-    mongoose_1.default.model("Post", PostSchema);
-exports.default = PostModel;
-// PostSchema.pre("findOne", function () {
-//   const { paranoid, ...rest } = this.getQuery();
-//   if (paranoid == false) {
-//     this.setQuery({ ...rest });
-//   } else {
-//     this.setQuery({ ...rest, deletedAt: { $exists: false } });
-//   }
-// });
+const ChatModel = mongoose_1.default.models.chat ||
+    mongoose_1.default.model("chat", ChatSchema);
+exports.default = ChatModel;

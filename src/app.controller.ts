@@ -16,7 +16,12 @@ import postRouter from "./modules/posts/post.controller.js";
 import commentRouter from "./modules/comments/comment.controller.js";
 import { createHandler } from "graphql-http/lib/use/express";
 import { gql_schema } from "./modules/graphql/graphql.schema.js";
-import { authentication } from "./common/middleware/authentication.js";
+import {
+  authentication,
+  decodeToken_and_fetchUser,
+} from "./common/middleware/authentication.js";
+import { Server } from "socket.io";
+import socketGateway from "./modules/realtime/socket.gateway.js";
 
 const app: express.Application = express();
 const port: number = Number(PORT);
@@ -74,9 +79,11 @@ const bootstrap = () => {
 
   app.use(globalErrorHandler);
 
-  app.listen(port, () => {
+  const httpServer = app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
   });
+
+  socketGateway.initIo(httpServer);
 };
 
 export default bootstrap;

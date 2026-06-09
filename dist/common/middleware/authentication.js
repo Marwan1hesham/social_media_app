@@ -3,15 +3,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.authentication_gql = exports.authentication = void 0;
+exports.authentication_gql = exports.authentication = exports.decodeToken_and_fetchUser = void 0;
 const global_error_handler_js_1 = require("../utils/global-error-handler.js");
 const token_service_js_1 = __importDefault(require("../service/token.service.js"));
 const config_service_js_1 = require("../../config/config.service.js");
 const user_repository_js_1 = __importDefault(require("../../DB/repository/user.repository.js"));
 const redis_service_js_1 = __importDefault(require("../service/redis.service.js"));
 const userModel = new user_repository_js_1.default();
-const authentication = async (req, res, next) => {
-    const { authorization } = req.headers;
+const decodeToken_and_fetchUser = async (authorization) => {
     if (!authorization) {
         throw new global_error_handler_js_1.AppError("Token required", 404);
     }
@@ -52,6 +51,12 @@ const authentication = async (req, res, next) => {
     if (revokeToken) {
         throw new global_error_handler_js_1.AppError("Token revoked");
     }
+    return { user, decoded };
+};
+exports.decodeToken_and_fetchUser = decodeToken_and_fetchUser;
+const authentication = async (req, res, next) => {
+    const { authorization } = req.headers;
+    const { user, decoded } = await (0, exports.decodeToken_and_fetchUser)(authorization);
     req.user = user;
     req.decoded = decoded;
     next();

@@ -17,6 +17,7 @@ const post_controller_js_1 = __importDefault(require("./modules/posts/post.contr
 const express_2 = require("graphql-http/lib/use/express");
 const graphql_schema_js_1 = require("./modules/graphql/graphql.schema.js");
 const authentication_js_1 = require("./common/middleware/authentication.js");
+const socket_gateway_js_1 = __importDefault(require("./modules/realtime/socket.gateway.js"));
 const app = (0, express_1.default)();
 const port = Number(config_service_js_1.PORT);
 const bootstrap = () => {
@@ -51,8 +52,9 @@ const bootstrap = () => {
         throw new global_error_handler_js_1.AppError(`Url ${req.method} ${req.originalUrl} is not found`, 404);
     });
     app.use(global_error_handler_js_1.globalErrorHandler);
-    app.listen(port, () => {
+    const httpServer = app.listen(port, () => {
         console.log(`Server is running on port ${port}`);
     });
+    socket_gateway_js_1.default.initIo(httpServer);
 };
 exports.default = bootstrap;

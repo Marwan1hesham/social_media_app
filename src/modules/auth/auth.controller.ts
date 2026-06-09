@@ -5,8 +5,11 @@ import AuthService from "./auth.service.js";
 import { authentication } from "../../common/middleware/authentication.js";
 import multerCloud from "../../common/middleware/multer.cloud.js";
 import { StoreEnum } from "../../common/enum/multer.enum.js";
+import chatRouter from "../chat/chat.controller.js";
 
 const authRouter = Router();
+
+authRouter.use("/:userId/chat", chatRouter)
 
 authRouter.post(
   "/signin",
